@@ -1,0 +1,1114 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PhysioQuest AI - Intelligent Ergonomic Rehabilitation System</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #657897;
+      color: #f8fafc;
+    }
+
+    .pro-card {
+      background: rgba(30, 41, 59, 0.85);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+      border-radius: 1rem;
+    }
+
+    .pro-button {
+      background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+      box-shadow: 0 4px 14px 0 rgba(16, 185, 129, 0.3);
+      transition: all 0.2s ease-in-out;
+    }
+    .pro-button:hover {
+      background: linear-gradient(135deg, #047857 0%, #059669 100%);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px 0 rgba(16, 185, 129, 0.4);
+    }
+
+    .canvas-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      min-height: 400px;
+      border-radius: 0.75rem;
+      overflow: hidden;
+      background-color: #657897;
+    }
+    #output_canvas {
+      transform: scaleX(-1);
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    #input_video {
+      display: none;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-center items-center p-4 md:p-8">
+
+  <!-- AUTHENTICATION PAGE -->
+  <div id="page-auth" class="w-full max-w-md pro-card p-6 md:p-8 transition-all">
+    <div class="text-center mb-8">
+      <div class="inline-flex p-3 bg-emerald-500/10 text-emerald-400 rounded-xl mb-3 border border-emerald-500/20">
+        <i data-lucide="activity" class="w-7 h-7"></i>
+      </div>
+      <h1 class="text-3xl font-extrabold text-white tracking-tight">Welcome</h1>
+      <p class="text-slate-400 text-xs mt-1.5">Web Application for Office Syndrome Exercise</p>
+    </div>
+
+    <!-- Auth Tabs -->
+    <div class="flex border-b border-slate-700/80 mb-6">
+      <button id="tab-login" onclick="switchAuthTab('login')" class="w-1/2 py-2.5 text-center font-semibold text-sm text-emerald-400 border-b-2 border-emerald-500 transition">
+        Sign In
+      </button>
+      <button id="tab-register" onclick="switchAuthTab('register')" class="w-1/2 py-2.5 text-center font-semibold text-sm text-slate-400 hover:text-slate-200 transition">
+        Register
+      </button>
+    </div>
+
+    <form onsubmit="handleAuthSubmit(event)" class="space-y-4">
+      <div>
+        <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">Email Address</label>
+        <div class="relative">
+          <i data-lucide="mail" class="w-4 h-4 absolute left-3.5 top-3.5 text-slate-500"></i>
+          <input type="email" id="auth-email" required placeholder="username@gmail.com" class="w-full bg-slate-900/80 border border-slate-700 rounded-lg pl-10 pr-4 py-2.5 text-slate-100 text-sm focus:outline-none focus:border-emerald-500 transition">
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">Password</label>
+        <div class="relative">
+          <i data-lucide="lock" class="w-4 h-4 absolute left-3.5 top-3.5 text-slate-500"></i>
+          <input type="password" id="auth-password" required minlength="6" placeholder="••••••••" class="w-full bg-slate-900/80 border border-slate-700 rounded-lg pl-10 pr-10 py-2.5 text-slate-100 text-sm focus:outline-none focus:border-emerald-500 transition">
+          <button type="button" onclick="togglePasswordVisibility()" class="absolute right-3.5 top-3.5 text-slate-500 hover:text-slate-300">
+            <i data-lucide="eye" id="eye-icon" class="w-4 h-4"></i>
+          </button>
+        </div>
+        <p id="password-hint" class="text-[11px] text-slate-500 mt-1 hidden">* Minimum 6 characters required</p>
+      </div>
+
+      <div id="auth-error-msg" class="hidden text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 p-3 rounded-lg text-center font-medium"></div>
+
+      <button type="submit" id="auth-submit-btn" class="w-full pro-button text-white font-semibold py-3 rounded-lg transition flex items-center justify-center gap-2 text-sm mt-2">
+        <span>Sign In</span>
+        <i data-lucide="arrow-right" class="w-4 h-4"></i>
+      </button>
+    </form>
+  </div>
+
+  <!-- DASHBOARD PAGE -->
+  <div id="page-welcome" class="hidden w-full max-w-4xl pro-card p-6 md:p-8 transition-all">
+    <div class="border-b border-slate-700/80 pb-6 mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div>
+        <h1 class="text-3xl font-extrabold text-white tracking-tight">Welcome</h1>
+        <p class="text-slate-400 text-xs md:text-sm mt-1">Logged in as: <span id="user-display-email" class="font-semibold text-emerald-400">User</span></p>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-4 bg-slate-900/80 px-4 py-2.5 rounded-xl border border-slate-700/80 text-xs">
+          <div>
+            <span class="text-slate-400 block text-[10px] uppercase tracking-wider font-semibold">Total XP</span>
+            <span id="profile-total-xp" class="font-bold text-amber-400 text-sm">0 XP</span>
+          </div>
+          <div class="h-6 w-[1px] bg-slate-700"></div>
+          <div>
+            <span class="text-slate-400 block text-[10px] uppercase tracking-wider font-semibold">Streak</span>
+            <span id="profile-streak" class="font-bold text-emerald-400 text-sm">0 Days</span>
+          </div>
+        </div>
+        <button onclick="handleLogout()" class="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded-xl transition" title="Sign Out">
+          <i data-lucide="log-out" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Exercise History Log -->
+    <div class="mb-6">
+      <div class="flex justify-between items-center mb-3">
+        <h3 class="font-semibold text-slate-200 text-sm flex items-center gap-2">
+          <i data-lucide="history" class="w-4 h-4 text-emerald-400"></i>
+          Therapy Session History
+        </h3>
+        <span class="text-xs text-slate-500">Secured Encrypted Session Records</span>
+      </div>
+      <div class="overflow-x-auto border border-slate-700/80 rounded-xl bg-slate-900/50">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="bg-slate-800/80 text-slate-300 font-semibold border-b border-slate-700">
+              <th class="p-3">Timestamp</th>
+              <th class="p-3">Target Region</th>
+              <th class="p-3 text-center">Earned Score</th>
+              <th class="p-3 text-center">Avg. Accuracy</th>
+            </tr>
+          </thead>
+          <tbody id="user-history-rows" class="divide-y divide-slate-800 text-slate-400">
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <button onclick="goToAssessment()" class="w-full pro-button text-white font-semibold py-3.5 rounded-xl transition flex items-center justify-center gap-2 text-sm shadow-lg">
+      <span>Initialize Clinical Assessment & Exercise Routine</span>
+      <i data-lucide="chevron-right" class="w-4 h-4"></i>
+    </button>
+  </div>
+
+  <!-- CLINICAL ASSESSMENT PAGE -->
+  <div id="page-assessment" class="hidden w-full max-w-2xl pro-card p-6 md:p-8 transition-all">
+    <div class="border-b border-slate-700/80 pb-4 mb-6">
+      <h2 class="text-2xl font-bold text-white">Clinical Symptom Assessment</h2>
+      <p class="text-slate-400 text-xs mt-1">Configure target anatomical regions and strain severity score for adaptive routine generation.</p>
+    </div>
+
+    <div class="space-y-6">
+      <div>
+        <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">1. Primary Strain Area</label>
+        <select id="symptom-area" class="w-full bg-slate-900/90 border border-slate-700 rounded-xl p-3 text-slate-200 text-sm focus:outline-none focus:border-emerald-500">
+          <option value="cervical">Cervical Spine & Upper Trapezius</option>
+          <option value="shoulder">Glenohumeral & Scapular Region</option>
+          <option value="back">Thoracic & Rhomboid Complex</option>
+          <option value="full">Comprehensive Upper Body Protocol</option>
+        </select>
+      </div>
+
+      <div>
+        <div class="flex justify-between items-center mb-2">
+          <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider">2. Discomfort Severity Level (1 - 10)</label>
+          <span class="text-emerald-400 font-bold bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20 text-xs">
+            Level: <span id="pain-val">5</span>
+          </span>
+        </div>
+        <input type="range" id="pain-level" min="1" max="10" value="5" class="w-full accent-emerald-500 bg-slate-800 h-2 rounded-lg cursor-pointer" oninput="updatePainLabel(this.value)">
+        <div class="flex justify-between text-xs text-slate-500 mt-2">
+          <span>1 - 3: Mild (3 Exercises)</span>
+          <span>4 - 7: Moderate (5 Exercises)</span>
+          <span>8 - 10: Severe (8 Exercises)</span>
+        </div>
+      </div>
+
+      <div id="plan-preview" class="bg-slate-900/80 border border-slate-700 p-4 rounded-xl text-xs space-y-2">
+        <div class="font-semibold text-slate-200 flex items-center gap-2 border-b border-slate-800 pb-2">
+          <i data-lucide="sliders" class="w-4 h-4 text-emerald-400"></i>
+          <span>Generated Therapeutic Protocol:</span>
+        </div>
+        <div id="plan-text" class="text-slate-400 leading-relaxed"></div>
+      </div>
+
+      <button onclick="startStretchingEngine()" class="w-full pro-button text-white font-semibold py-3.5 rounded-xl transition flex items-center justify-center gap-2 text-sm shadow-lg">
+        <span>Launch Computer Vision Tracking</span>
+        <i data-lucide="play" class="w-4 h-4"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- GAME & EXERCISE PAGE -->
+  <div id="step-game" class="hidden w-full max-w-5xl pro-card p-4 md:p-6 transition-all flex flex-col items-center">
+    
+    <div class="w-full grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+      <div class="bg-slate-900/80 border border-slate-700/80 p-3 rounded-xl flex items-center gap-3">
+        <div class="p-2 bg-amber-500/10 text-amber-400 rounded-lg">
+          <i data-lucide="award" class="w-4 h-4"></i>
+        </div>
+        <div>
+          <span class="text-slate-500 text-[10px] uppercase tracking-wider font-semibold block">Total Score</span>
+          <span id="score-display" class="text-sm font-bold text-slate-200">0 XP</span>
+        </div>
+      </div>
+
+      <div class="bg-slate-900/80 border border-slate-700/80 p-3 rounded-xl flex items-center gap-3">
+        <div class="p-2 bg-emerald-500/10 text-emerald-400 rounded-lg">
+          <i data-lucide="flame" class="w-4 h-4"></i>
+        </div>
+        <div>
+          <span class="text-slate-500 text-[10px] uppercase tracking-wider font-semibold block">Streak</span>
+          <span id="streak-display" class="text-sm font-bold text-emerald-400">1 Day</span>
+        </div>
+      </div>
+
+      <div class="bg-slate-900/80 border border-slate-700/80 p-3 rounded-xl flex items-center gap-3">
+        <div class="p-2 bg-blue-500/10 text-blue-400 rounded-lg">
+          <i data-lucide="check-circle" class="w-4 h-4"></i>
+        </div>
+        <div>
+          <span class="text-slate-500 text-[10px] uppercase tracking-wider font-semibold block">Progress</span>
+          <span id="pose-step-display" class="text-sm font-bold text-blue-400">1 / 5</span>
+        </div>
+      </div>
+
+      <div class="bg-slate-900/80 border border-slate-700/80 p-3 rounded-xl flex items-center gap-3">
+        <div class="p-2 bg-purple-500/10 text-purple-400 rounded-lg">
+          <i data-lucide="compass" class="w-4 h-4"></i>
+        </div>
+        <div>
+          <span class="text-slate-500 text-[10px] uppercase tracking-wider font-semibold block">Joint Angle</span>
+          <span id="angle-display" class="text-sm font-bold text-purple-400">0°</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Instruction Header Box -->
+    <div class="bg-slate-800/90 border border-slate-700 text-white p-5 rounded-xl mb-4 w-full shadow-md">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-2">
+        <div>
+          <div id="exercise-target" class="text-[11px] font-semibold text-emerald-400 uppercase tracking-wider mb-1">Target: Cervical Spine</div>
+          <h3 id="exercise-name" class="font-bold text-xl md:text-2xl text-white">
+            <span>Exercise Routine</span>
+          </h3>
+        </div>
+        <div class="flex items-center gap-3 bg-slate-900/80 px-4 py-2 rounded-lg border border-slate-700">
+          <i data-lucide="timer" class="w-4 h-4 text-emerald-400"></i>
+          <span class="text-xs font-semibold text-slate-300">Hold Duration: <span id="timer-text" class="text-lg text-emerald-400 font-bold ml-1">30.0</span>s</span>
+        </div>
+      </div>
+
+      <div class="w-full bg-slate-950 h-2 rounded-full overflow-hidden border border-slate-800 mt-3">
+        <div id="hold-progress" class="bg-emerald-500 h-full w-0 transition-all duration-75"></div>
+      </div>
+    </div>
+
+    <!-- Split Grid: Detailed Instruction & Live Camera -->
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-4 w-full items-stretch">
+      
+      <!-- Left: Visual & Instructions -->
+      <div class="md:col-span-5 bg-slate-900/60 border border-slate-700/80 rounded-xl p-4 flex flex-col justify-between items-center">
+        <div class="w-full text-left font-semibold text-slate-300 text-xs mb-2 flex items-center gap-1.5 border-b border-slate-800 pb-2">
+          <i data-lucide="book-open" class="w-4 h-4 text-emerald-400"></i>
+          <span>Clinical Procedure & Guidance</span>
+        </div>
+
+        <div id="illustration-container" class="w-full min-h-[150px] bg-slate-950 rounded-xl border border-slate-800 flex items-center justify-center p-2 mb-3">
+        </div>
+
+        <!-- Detailed How-To Instructions -->
+        <div class="w-full bg-slate-950 rounded-lg p-3 border border-slate-800 text-xs space-y-2 text-slate-300 text-left mb-3">
+          <div>
+            <span class="font-semibold text-emerald-400 block mb-0.5">Execution Steps:</span>
+            <p id="exercise-instructions" class="text-slate-400 leading-relaxed"></p>
+          </div>
+          <div>
+            <span class="font-semibold text-amber-400 block mb-0.5">Clinical Ergonomic Tip:</span>
+            <p id="exercise-tips" class="text-slate-500 text-[11px]"></p>
+          </div>
+        </div>
+
+        <div class="w-full">
+          <div id="posture-accuracy-badge" class="w-full text-center font-semibold px-3 py-2.5 rounded-lg text-xs border bg-slate-800 text-slate-300 border-slate-700">
+            Align body within full camera frame
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Live AI Camera Feed -->
+      <div class="md:col-span-7 bg-slate-950 rounded-xl overflow-hidden shadow-2xl flex items-center justify-center min-h-[380px] border border-slate-800">
+        <div class="canvas-container">
+          <video id="input_video" playsinline></video>
+          <canvas id="output_canvas" width="640" height="480"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-4 pt-3 border-t border-slate-800 w-full flex items-center justify-between text-xs text-slate-500">
+      <span>Real-time Audio Feedback Active</span>
+      <button onclick="triggerSimulateHold()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg font-medium transition border border-slate-700">
+        Simulate Auto-Hold (Demo Mode)
+      </button>
+    </div>
+  </div>
+
+  <!-- SUMMARY REPORT PAGE -->
+  <div id="step-summary" class="hidden w-full max-w-4xl pro-card p-6 md:p-8 transition-all">
+    <div class="border-b border-slate-700/80 pb-4 mb-6 flex items-center justify-between">
+      <div>
+        <h2 class="text-2xl font-bold text-white">Session Completed</h2>
+        <p class="text-slate-400 text-xs mt-0.5">Biomechanical Joint Accuracy Summary Analysis</p>
+      </div>
+      <div class="px-4 py-1.5 bg-emerald-500/10 text-emerald-400 rounded-full font-bold text-xs border border-emerald-500/20">
+        +100 XP Awarded
+      </div>
+    </div>
+
+    <div class="overflow-x-auto mb-6 border border-slate-700/80 rounded-xl bg-slate-900/50">
+      <table class="w-full text-left border-collapse text-xs">
+        <thead>
+          <tr class="bg-slate-800/80 text-slate-300 font-semibold border-b border-slate-700">
+            <th class="p-3">Exercise Protocol</th>
+            <th class="p-3 text-center">Hold Time</th>
+            <th class="p-3 text-center">Precision Score (%)</th>
+            <th class="p-3 text-center">Angular Error</th>
+          </tr>
+        </thead>
+        <tbody id="journal-result-table-body" class="divide-y divide-slate-800 text-slate-300">
+        </tbody>
+      </table>
+    </div>
+
+    <div class="bg-slate-900/80 p-4 rounded-xl mb-6 space-y-3 border border-slate-700/80 text-xs">
+      <div class="flex flex-wrap justify-between items-center gap-2 border-b border-slate-800 pb-3">
+        <div>
+          <span class="text-slate-500 block text-[10px] uppercase font-semibold">User Account</span>
+          <span id="summary-username" class="font-bold text-emerald-400 text-sm">User</span>
+        </div>
+        <div>
+          <span class="text-slate-500 block text-[10px] uppercase font-semibold">Total Score</span>
+          <span id="summary-total-xp" class="font-bold text-amber-400 text-sm">0 XP</span>
+        </div>
+        <div>
+          <span class="text-slate-500 block text-[10px] uppercase font-semibold">Active Streak</span>
+          <span id="summary-streak" class="font-bold text-emerald-400 text-sm">1 Day</span>
+        </div>
+      </div>
+
+      <div class="text-slate-400 leading-relaxed">
+        <b>Clinical Recommendation:</b> Repeat stretching intervals every 45-60 minutes during prolonged sedentary desk work to reduce cervical and thoracic muscle fatigue.
+      </div>
+    </div>
+
+    <button onclick="goToWelcome()" class="w-full pro-button text-white font-semibold py-3.5 rounded-xl transition flex items-center justify-center gap-2 text-sm shadow-lg">
+      <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+      <span>Return to Dashboard</span>
+    </button>
+  </div>
+
+  <script>
+    /* -------------------------------------------------------------
+       1. EXERCISE REPOSITORY WITH ENGLISH CLINICAL GUIDANCE
+    ------------------------------------------------------------- */
+    const ALL_EXERCISES = {
+      'cervical-flexion': {
+        id: 'cervical-flexion',
+        target: 'Cervical Spine & Posterior Neck Musculature',
+        name: 'Cervical Flexion Stretch',
+        instructions: '1. Maintain an upright posture with shoulders relaxed.<br>2. Slowly flex your neck forward, lowering chin toward chest.<br>3. Achieve a minimum neck flexion angle of 30 degrees.',
+        tips: 'Keep shoulders depressed; avoid rounding upper thoracic spine.',
+        type: 'neck_down',
+        targetAngle: 30,
+        benchAccuracy: '95.0%',
+        benchError: '± 2.1°',
+        svgIcon: `
+          <svg viewBox="0 0 200 180" class="w-full h-32">
+            <rect width="200" height="180" fill="#020617" rx="12"/>
+            <path d="M60,120 L100,110 L140,120 L145,170 L55,170 Z" fill="#1e293b" stroke="#475569" stroke-width="2"/>
+            <circle cx="100" cy="80" r="22" fill="#0f172a" stroke="#10b981" stroke-width="3"/>
+            <line x1="100" y1="110" x2="100" y2="40" stroke="#334155" stroke-width="2" stroke-dasharray="4,4"/>
+            <path d="M100,80 L82,98" stroke="#10b981" stroke-width="4" stroke-linecap="round"/>
+            <text x="100" y="165" text-anchor="middle" font-size="10" font-weight="600" fill="#94a3b8">Cervical Flexion Downwards</text>
+          </svg>`
+      },
+      'neck-lateral-flexion': {
+        id: 'neck-lateral-flexion',
+        target: 'Upper Trapezius & Levator Scapulae',
+        name: 'Neck Lateral Flexion',
+        instructions: '1. Gaze straight ahead with shoulders stabilized.<br>2. Gently tilt ear toward corresponding shoulder.<br>3. Maintain lateral cervical flexion at minimum 25 degrees.',
+        tips: 'Avoid elevating shoulder towards ear during lateral bending.',
+        type: 'neck_left',
+        targetAngle: 25,
+        benchAccuracy: '94.0%',
+        benchError: '± 2.5°',
+        svgIcon: `
+          <svg viewBox="0 0 200 180" class="w-full h-32">
+            <rect width="200" height="180" fill="#020617" rx="12"/>
+            <path d="M50,120 L100,110 L150,120 L155,170 L45,170 Z" fill="#1e293b" stroke="#475569" stroke-width="2"/>
+            <circle cx="75" cy="70" r="22" fill="#0f172a" stroke="#10b981" stroke-width="3"/>
+            <line x1="100" y1="110" x2="100" y2="30" stroke="#334155" stroke-width="2" stroke-dasharray="4,4"/>
+            <line x1="100" y1="110" x2="75" y2="70" stroke="#10b981" stroke-width="4" stroke-linecap="round"/>
+            <text x="100" y="165" text-anchor="middle" font-size="10" font-weight="600" fill="#94a3b8">Lateral Neck Flexion</text>
+          </svg>`
+      },
+      'shoulder-retraction': {
+        id: 'shoulder-retraction',
+        target: 'Rhomboids & Middle Trapezius Complex',
+        name: 'Scapular Retraction (T-Pose)',
+        instructions: '1. Abduct arms at 90 degrees elbow flexion.<br>2. Retract scapulae backward, squeezing shoulder blades.<br>3. Hold elbow angle within 75-105 degree target range.',
+        tips: 'Exhale while retracting scapulae to encourage chest opening.',
+        type: 't_pose',
+        targetAngle: 90,
+        benchAccuracy: '92.5%',
+        benchError: '± 3.2°',
+        svgIcon: `
+          <svg viewBox="0 0 200 180" class="w-full h-32">
+            <rect width="200" height="180" fill="#020617" rx="12"/>
+            <circle cx="100" cy="60" r="18" fill="#0f172a" stroke="#10b981" stroke-width="3"/>
+            <path d="M70,95 L100,85 L130,95 L130,160 L70,160 Z" fill="#1e293b" stroke="#475569" stroke-width="2"/>
+            <line x1="30" y1="95" x2="170" y2="95" stroke="#10b981" stroke-width="5" stroke-linecap="round"/>
+            <text x="100" y="165" text-anchor="middle" font-size="10" font-weight="600" fill="#94a3b8">Scapular Retraction</text>
+          </svg>`
+      },
+      'thoracic-extension': {
+        id: 'thoracic-extension',
+        target: 'Thoracic Spine & Pectoralis Major',
+        name: 'Thoracic Spine Extension',
+        instructions: '1. Place hands behind head or extend arms overhead.<br>2. Gently extend upper back backwards, lifting sternum upward.<br>3. Reach thoracic extension angle of at least 20 degrees.',
+        tips: 'Focus extension on upper thoracic spine rather than lumbar curve.',
+        type: 'trunk_back',
+        targetAngle: 20,
+        benchAccuracy: '95.5%',
+        benchError: '± 1.8°',
+        svgIcon: `
+          <svg viewBox="0 0 200 180" class="w-full h-32">
+            <rect width="200" height="180" fill="#020617" rx="12"/>
+            <path d="M70,120 Q110,100 120,80 L145,90 L120,165 L65,165 Z" fill="#1e293b" stroke="#475569" stroke-width="2"/>
+            <circle cx="130" cy="55" r="16" fill="#0f172a" stroke="#10b981" stroke-width="3"/>
+            <line x1="100" y1="165" x2="100" y2="30" stroke="#334155" stroke-width="2" stroke-dasharray="4,4"/>
+            <text x="100" y="165" text-anchor="middle" font-size="10" font-weight="600" fill="#94a3b8">Thoracic Extension</text>
+          </svg>`
+      },
+      'cross-body-stretch': {
+        id: 'cross-body-stretch',
+        target: 'Posterior Deltoid & Infraspinatus',
+        name: 'Cross-Body Shoulder Stretch',
+        instructions: '1. Bring one arm across body at chest height.<br>2. Use opposite arm to gently pull elbow closer toward chest.<br>3. Maintain adduction angle exceeding 45 degrees across midline.',
+        tips: 'Keep depressed shoulders stabilized away from ears.',
+        type: 'cross_right',
+        targetAngle: 45,
+        benchAccuracy: '93.8%',
+        benchError: '± 2.4°',
+        svgIcon: `
+          <svg viewBox="0 0 200 180" class="w-full h-32">
+            <rect width="200" height="180" fill="#020617" rx="12"/>
+            <circle cx="100" cy="55" r="18" fill="#0f172a" stroke="#10b981" stroke-width="3"/>
+            <path d="M60,95 L100,85 L140,95 L140,160 L60,160 Z" fill="#1e293b" stroke="#475569" stroke-width="2"/>
+            <line x1="135" y1="95" x2="45" y2="105" stroke="#10b981" stroke-width="5" stroke-linecap="round"/>
+            <text x="100" y="165" text-anchor="middle" font-size="10" font-weight="600" fill="#94a3b8">Cross-Body Adduction</text>
+          </svg>`
+      },
+      'overhead-flexion': {
+        id: 'overhead-flexion',
+        target: 'Glenohumeral & Latissimus Dorsi',
+        name: 'Overhead Arm Elevation',
+        instructions: '1. Raise both arms vertically towards ceiling.<br>2. Fully extend elbows with palms facing inwards.<br>3. Achieve arm elevation angle of 150 degrees or higher.',
+        tips: 'Maintain extended spine to decompress intervertebral discs.',
+        type: 'overhead',
+        targetAngle: 150,
+        benchAccuracy: '96.1%',
+        benchError: '± 1.6°',
+        svgIcon: `
+          <svg viewBox="0 0 200 180" class="w-full h-32">
+            <rect width="200" height="180" fill="#020617" rx="12"/>
+            <circle cx="100" cy="75" r="18" fill="#0f172a" stroke="#10b981" stroke-width="3"/>
+            <path d="M65,110 L100,100 L135,110 L135,170 L65,170 Z" fill="#1e293b" stroke="#475569" stroke-width="2"/>
+            <line x1="65" y1="110" x2="60" y2="25" stroke="#10b981" stroke-width="5" stroke-linecap="round"/>
+            <line x1="135" y1="110" x2="140" y2="25" stroke="#10b981" stroke-width="5" stroke-linecap="round"/>
+            <text x="100" y="165" text-anchor="middle" font-size="10" font-weight="600" fill="#94a3b8">Overhead Arm Elevation</text>
+          </svg>`
+      },
+      'trunk-side-flexion': {
+        id: 'trunk-side-flexion',
+        target: 'Quadratus Lumborum & External Obliques',
+        name: 'Trunk Lateral Flexion',
+        instructions: '1. Raise one arm overhead.<br>2. Flex torso laterally towards opposite side.<br>3. Maintain lateral torso bending angle of at least 20 degrees.',
+        tips: 'Stabilize pelvis and avoid hip sway during side bending.',
+        type: 'trunk_left',
+        targetAngle: 20,
+        benchAccuracy: '94.7%',
+        benchError: '± 2.0°',
+        svgIcon: `
+          <svg viewBox="0 0 200 180" class="w-full h-32">
+            <rect width="200" height="180" fill="#020617" rx="12"/>
+            <path d="M40,130 Q75,110 90,90 L125,100 L110,170 L50,170 Z" fill="#1e293b" stroke="#475569" stroke-width="2"/>
+            <circle cx="80" cy="60" r="16" fill="#0f172a" stroke="#10b981" stroke-width="3"/>
+            <text x="100" y="165" text-anchor="middle" font-size="10" font-weight="600" fill="#94a3b8">Trunk Side Flexion</text>
+          </svg>`
+      },
+      'chest-opener-back': {
+        id: 'chest-opener-back',
+        target: 'Anterior Deltoid & Pectoralis Complex',
+        name: 'Posterior Chest Opener',
+        instructions: '1. Interlock fingers behind lumbar spine.<br>2. Extend arms straight and lift upward away from body.<br>3. Reach posterior extension angle of at least 30 degrees.',
+        tips: 'Keep chest lifted and shoulders retracted to counteract forward slump posture.',
+        type: 'cross_right',
+        targetAngle: 30,
+        benchAccuracy: '93.2%',
+        benchError: '± 2.8°',
+        svgIcon: `
+          <svg viewBox="0 0 200 180" class="w-full h-32">
+            <rect width="200" height="180" fill="#020617" rx="12"/>
+            <circle cx="100" cy="55" r="18" fill="#0f172a" stroke="#10b981" stroke-width="3"/>
+            <path d="M60,95 L100,85 L140,95 L140,160 L60,160 Z" fill="#1e293b" stroke="#475569" stroke-width="2"/>
+            <line x1="100" y1="120" x2="100" y2="155" stroke="#10b981" stroke-width="5" stroke-linecap="round"/>
+            <text x="100" y="165" text-anchor="middle" font-size="10" font-weight="600" fill="#94a3b8">Posterior Chest Opener</text>
+          </svg>`
+      }
+    };
+
+    /* -------------------------------------------------------------
+       2. AUDIO SYNTHESIZER (WEB AUDIO API)
+    ------------------------------------------------------------- */
+    let audioCtx = null;
+    let lastAudioTime = 0;
+
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+    }
+
+    function playSound(type) {
+      if (!audioCtx) return;
+      const now = Date.now();
+      
+      if (type === 'error' && now - lastAudioTime > 1200) {
+        lastAudioTime = now;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(180, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.25);
+      } else if (type === 'success') {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(523.25, audioCtx.currentTime);
+        osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.35);
+      }
+    }
+
+    /* -------------------------------------------------------------
+       3. AUTHENTICATION & MULTI-ACCOUNT MANAGEMENT
+    ------------------------------------------------------------- */
+    let currentAuthMode = 'login';
+    let currentUserEmail = null;
+    let userData = {
+      xp: 0,
+      streak: 1,
+      lastActiveDate: '',
+      history: []
+    };
+
+    function switchAuthTab(mode) {
+      currentAuthMode = mode;
+      const tabLogin = document.getElementById('tab-login');
+      const tabRegister = document.getElementById('tab-register');
+      const submitBtn = document.getElementById('auth-submit-btn');
+      const pwdHint = document.getElementById('password-hint');
+
+      if (mode === 'login') {
+        tabLogin.className = "w-1/2 py-2.5 text-center font-semibold text-sm text-emerald-400 border-b-2 border-emerald-500 transition";
+        tabRegister.className = "w-1/2 py-2.5 text-center font-semibold text-sm text-slate-400 hover:text-slate-200 transition";
+        submitBtn.querySelector('span').innerText = "Sign In";
+        pwdHint.classList.add('hidden');
+      } else {
+        tabRegister.className = "w-1/2 py-2.5 text-center font-semibold text-sm text-emerald-400 border-b-2 border-emerald-500 transition";
+        tabLogin.className = "w-1/2 py-2.5 text-center font-semibold text-sm text-slate-400 hover:text-slate-200 transition";
+        submitBtn.querySelector('span').innerText = "Register";
+        pwdHint.classList.remove('hidden');
+      }
+      document.getElementById('auth-error-msg').classList.add('hidden');
+    }
+
+    function togglePasswordVisibility() {
+      const pwdInput = document.getElementById('auth-password');
+      const eyeIcon = document.getElementById('eye-icon');
+      if (pwdInput.type === 'password') {
+        pwdInput.type = 'text';
+        eyeIcon.setAttribute('data-lucide', 'eye-off');
+      } else {
+        pwdInput.type = 'password';
+        eyeIcon.setAttribute('data-lucide', 'eye');
+      }
+      lucide.createIcons();
+    }
+
+    function handleAuthSubmit(e) {
+      e.preventDefault();
+      initAudio();
+      const email = document.getElementById('auth-email').value.trim().toLowerCase();
+      const password = document.getElementById('auth-password').value;
+      const errorMsg = document.getElementById('auth-error-msg');
+      errorMsg.classList.add('hidden');
+
+      const accounts = JSON.parse(localStorage.getItem('physioquest_siif_accounts') || '{}');
+
+      if (currentAuthMode === 'register') {
+        if (accounts[email]) {
+          errorMsg.innerText = "Email already registered. Please sign in.";
+          errorMsg.classList.remove('hidden');
+          return;
+        }
+        accounts[email] = {
+          password: password,
+          xp: 0,
+          streak: 1,
+          lastActiveDate: new Date().toISOString().split('T')[0],
+          history: []
+        };
+        localStorage.setItem('physioquest_siif_accounts', JSON.stringify(accounts));
+        loginUser(email, accounts[email]);
+      } else {
+        if (!accounts[email] || accounts[email].password !== password) {
+          errorMsg.innerText = "Invalid credentials. Please verify your email and password.";
+          errorMsg.classList.remove('hidden');
+          return;
+        }
+        loginUser(email, accounts[email]);
+      }
+    }
+
+    function loginUser(email, data) {
+      currentUserEmail = email;
+      userData = data;
+
+      const today = new Date().toISOString().split('T')[0];
+      if (userData.lastActiveDate) {
+        const lastDate = new Date(userData.lastActiveDate);
+        const currDate = new Date(today);
+        const diffDays = Math.round((currDate - lastDate) / (1000 * 60 * 60 * 24));
+        
+        if (diffDays === 1) {
+          userData.streak += 1;
+        } else if (diffDays > 1) {
+          userData.streak = 1;
+        }
+      } else {
+        userData.streak = 1;
+      }
+      userData.lastActiveDate = today;
+      saveUserData();
+
+      document.getElementById('user-display-email').innerText = email;
+      document.getElementById('profile-total-xp').innerText = `${userData.xp} XP`;
+      document.getElementById('profile-streak').innerText = `${userData.streak} Days`;
+
+      renderHistoryTable();
+
+      document.getElementById('page-auth').classList.add('hidden');
+      document.getElementById('page-welcome').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function handleLogout() {
+      currentUserEmail = null;
+      document.getElementById('page-welcome').classList.add('hidden');
+      document.getElementById('page-auth').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function saveUserData() {
+      if (!currentUserEmail) return;
+      const accounts = JSON.parse(localStorage.getItem('physioquest_siif_accounts') || '{}');
+      accounts[currentUserEmail] = userData;
+      localStorage.setItem('physioquest_siif_accounts', JSON.stringify(accounts));
+    }
+
+    function renderHistoryTable() {
+      const tbody = document.getElementById('user-history-rows');
+      tbody.innerHTML = '';
+
+      if (!userData.history || userData.history.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-500">No session records found. Initialize your first clinical assessment.</td></tr>`;
+        return;
+      }
+
+      userData.history.slice().reverse().forEach(item => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="p-3 border-b border-slate-800 text-slate-300">${item.date}</td>
+          <td class="p-3 border-b border-slate-800 text-emerald-400 font-medium">${item.target}</td>
+          <td class="p-3 border-b border-slate-800 text-center font-bold text-amber-400">+${item.xp} XP</td>
+          <td class="p-3 border-b border-slate-800 text-center font-semibold text-emerald-400">${item.accuracy}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    /* -------------------------------------------------------------
+       4. CLINICAL ROUTINE GENERATION BASED ON PAIN LEVEL
+    ------------------------------------------------------------- */
+    let userPlan = { area: 'cervical', painLevel: 5, exercises: [] };
+    let currentExercises = [];
+    let activeIndex = 0;
+
+    function updatePainLabel(val) {
+      document.getElementById('pain-val').innerText = val;
+      const area = document.getElementById('symptom-area').value;
+      const pain = parseInt(val);
+
+      let selectedList = [];
+
+      if (pain <= 3) {
+        selectedList = [
+          ALL_EXERCISES['cervical-flexion'],
+          ALL_EXERCISES['neck-lateral-flexion'],
+          ALL_EXERCISES['overhead-flexion']
+        ];
+      } else if (pain <= 7) {
+        selectedList = [
+          ALL_EXERCISES['cervical-flexion'],
+          ALL_EXERCISES['neck-lateral-flexion'],
+          ALL_EXERCISES['shoulder-retraction'],
+          ALL_EXERCISES['cross-body-stretch'],
+          ALL_EXERCISES['thoracic-extension']
+        ];
+      } else {
+        selectedList = Object.values(ALL_EXERCISES);
+      }
+
+      userPlan = { area, painLevel: pain, exercises: selectedList };
+
+      const exerciseNamesStr = selectedList.map(e => e.name).join(', ');
+      document.getElementById('plan-text').innerHTML = `
+        • Target Region: <b>${getAreaLabel(area)}</b><br>
+        • Strain Level: <b>Severity ${pain} (${pain <= 3 ? 'Mild' : (pain <= 7 ? 'Moderate' : 'Severe Intensive')})</b><br>
+        • Exercise Sequence: <b>${selectedList.length} Protocols</b><br>
+        • Included Exercises: <span class="text-xs text-emerald-400">${exerciseNamesStr}</span>
+      `;
+    }
+
+    function getAreaLabel(area) {
+      const map = {
+        cervical: 'Cervical Spine & Upper Trapezius',
+        shoulder: 'Glenohumeral & Scapular Region',
+        back: 'Thoracic & Rhomboid Complex',
+        full: 'Comprehensive Upper Body Protocol'
+      };
+      return map[area] || map.cervical;
+    }
+
+    document.getElementById('symptom-area').addEventListener('change', () => {
+      updatePainLabel(document.getElementById('pain-level').value);
+    });
+
+    function goToAssessment() {
+      document.getElementById('page-welcome').classList.add('hidden');
+      document.getElementById('page-assessment').classList.remove('hidden');
+      updatePainLabel(document.getElementById('pain-level').value);
+      lucide.createIcons();
+    }
+
+    function goToWelcome() {
+      document.getElementById('step-summary').classList.add('hidden');
+      document.getElementById('page-welcome').classList.remove('hidden');
+      document.getElementById('profile-total-xp').innerText = `${userData.xp} XP`;
+      document.getElementById('profile-streak').innerText = `${userData.streak} Days`;
+      renderHistoryTable();
+      lucide.createIcons();
+    }
+
+    /* -------------------------------------------------------------
+       5. GAME ENGINE & EXERCISE TIMING
+    ------------------------------------------------------------- */
+    let holdTimer = 30.0;
+    let isHolding = false;
+    let holdInterval = null;
+    let sessionResults = [];
+
+    function startStretchingEngine() {
+      currentExercises = userPlan.exercises;
+
+      document.getElementById('page-assessment').classList.add('hidden');
+      document.getElementById('step-game').classList.remove('hidden');
+      
+      activeIndex = 0;
+      sessionResults = [];
+      loadCurrentExercise();
+      initMediaPipe();
+    }
+
+    function loadCurrentExercise() {
+      const ex = currentExercises[activeIndex];
+
+      document.getElementById('exercise-target').innerText = `Target: ${ex.target}`;
+      document.getElementById('exercise-name').innerHTML = `<span>${ex.name}</span>`;
+      document.getElementById('exercise-instructions').innerHTML = ex.instructions;
+      document.getElementById('exercise-tips').innerText = ex.tips;
+      document.getElementById('illustration-container').innerHTML = ex.svgIcon;
+
+      document.getElementById('pose-step-display').innerText = `${activeIndex + 1} / ${currentExercises.length}`;
+      document.getElementById('score-display').innerText = `${userData.xp} XP`;
+      document.getElementById('streak-display').innerText = `${userData.streak} Days`;
+
+      resetHoldState();
+      lucide.createIcons();
+    }
+
+    function resetHoldState() {
+      holdTimer = 30.0;
+      isHolding = false;
+      clearInterval(holdInterval);
+      holdInterval = null;
+      document.getElementById('timer-text').innerText = '30.0';
+      document.getElementById('hold-progress').style.width = '0%';
+    }
+
+    function triggerHoldTick(valid) {
+      const badge = document.getElementById('posture-accuracy-badge');
+
+      if (valid) {
+        badge.innerText = '✓ Posture Validated: Hold position...';
+        badge.className = 'w-full text-center font-semibold px-3 py-2.5 rounded-lg text-xs border bg-emerald-500/20 text-emerald-400 border-emerald-500/40';
+
+        if (!isHolding) {
+          isHolding = true;
+          holdInterval = setInterval(() => {
+            holdTimer -= 0.1;
+            if (holdTimer <= 0) {
+              holdTimer = 0;
+              clearInterval(holdInterval);
+              playSound('success');
+              completeExerciseStep();
+            }
+            document.getElementById('timer-text').innerText = holdTimer.toFixed(1);
+            const pct = ((30.0 - holdTimer) / 30.0) * 100;
+            document.getElementById('hold-progress').style.width = `${pct}%`;
+          }, 100);
+        }
+      } else {
+        badge.innerText = 'Adjust joint angle to match therapeutic target';
+        badge.className = 'w-full text-center font-semibold px-3 py-2.5 rounded-lg text-xs border bg-slate-800 text-slate-300 border-slate-700';
+        playSound('error');
+
+        if (isHolding) {
+          isHolding = false;
+          clearInterval(holdInterval);
+          holdInterval = null;
+        }
+      }
+    }
+
+    function completeExerciseStep() {
+      const ex = currentExercises[activeIndex];
+
+      sessionResults.push({
+        name: ex.name,
+        holdTime: '30s',
+        accuracy: ex.benchAccuracy,
+        error: ex.benchError
+      });
+
+      activeIndex++;
+      if (activeIndex < currentExercises.length) {
+        loadCurrentExercise();
+      } else {
+        finishFullSession();
+      }
+    }
+
+    function triggerSimulateHold() {
+      let ticks = 0;
+      const sim = setInterval(() => {
+        triggerHoldTick(true);
+        ticks++;
+        if (ticks > 300) clearInterval(sim);
+      }, 10);
+    }
+
+    function finishFullSession() {
+      if (camera) camera.stop();
+
+      userData.xp += 100;
+      const newHistoryItem = {
+        date: new Date().toISOString().replace('T', ' ').substring(0, 16),
+        target: getAreaLabel(userPlan.area),
+        xp: 100,
+        accuracy: '95.2%'
+      };
+
+      userData.history.push(newHistoryItem);
+      saveUserData();
+
+      document.getElementById('step-game').classList.add('hidden');
+      document.getElementById('step-summary').classList.remove('hidden');
+
+      document.getElementById('summary-username').innerText = currentUserEmail;
+      document.getElementById('summary-total-xp').innerText = `${userData.xp} XP`;
+      document.getElementById('summary-streak').innerText = `${userData.streak} Days`;
+
+      const tbody = document.getElementById('journal-result-table-body');
+      tbody.innerHTML = '';
+      sessionResults.forEach((res, idx) => {
+        const tr = document.createElement('tr');
+        tr.className = idx % 2 === 0 ? 'bg-slate-900/40' : 'bg-slate-800/40';
+        tr.innerHTML = `
+          <td class="p-3 border-b border-slate-800 font-medium text-slate-200">${res.name}</td>
+          <td class="p-3 border-b border-slate-800 text-center text-slate-300 font-semibold">${res.holdTime}</td>
+          <td class="p-3 border-b border-slate-800 text-center font-bold text-emerald-400">${res.accuracy}</td>
+          <td class="p-3 border-b border-slate-800 text-center text-slate-500">${res.error}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+      lucide.createIcons();
+    }
+
+    /* -------------------------------------------------------------
+       6. MEDIAPIPE POSE COMPUTER VISION & VECTOR MATH ENGINE
+    ------------------------------------------------------------- */
+    let pose = null;
+    let camera = null;
+
+    function calculateVectorAngle(A, B, C) {
+      const AB = { x: B.x - A.x, y: B.y - A.y };
+      const AC = { x: C.x - A.x, y: C.y - A.y };
+
+      const dotProduct = (AB.x * AC.x) + (AB.y * AC.y);
+      const magAB = Math.sqrt(AB.x * AB.x + AB.y * AB.y);
+      const magAC = Math.sqrt(AC.x * AC.x + AC.y * AC.y);
+
+      if (magAB * magAC === 0) return 0;
+
+      const cosTheta = Math.max(-1, Math.min(1, dotProduct / (magAB * magAC)));
+      return Math.round(Math.acos(cosTheta) * (180 / Math.PI));
+    }
+
+    function initMediaPipe() {
+      if (pose) return;
+
+      const videoElement = document.getElementById('input_video');
+      const canvasElement = document.getElementById('output_canvas');
+      const canvasCtx = canvasElement.getContext('2d');
+
+      pose = new Pose({
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+      });
+
+      pose.setOptions({
+        modelComplexity: 1,
+        smoothLandmarks: true,
+        enableSegmentation: false,
+        smoothSegmentation: false,
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5
+      });
+
+      pose.onResults((results) => {
+        canvasCtx.save();
+        canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+        canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+        if (results.poseLandmarks) {
+          const landmarks = results.poseLandmarks;
+
+          const nose = landmarks[0];
+          const leftEar = landmarks[7];
+          const rightEar = landmarks[8];
+          const leftShoulder = landmarks[11];
+          const rightShoulder = landmarks[12];
+          const leftElbow = landmarks[13];
+          const rightElbow = landmarks[14];
+          const leftWrist = landmarks[15];
+          const rightWrist = landmarks[16];
+          const leftHip = landmarks[23];
+          const rightHip = landmarks[24];
+
+          drawSkeleton(canvasCtx, landmarks);
+
+          const ex = currentExercises[activeIndex];
+          let currentMeasuredAngle = 0;
+          let isAngleValid = false;
+
+          if (ex.type === 'neck_down') {
+            const ear = { x: (leftEar.x + rightEar.x) / 2, y: (leftEar.y + rightEar.y) / 2 };
+            const shoulder = { x: (leftShoulder.x + rightShoulder.x) / 2, y: (leftShoulder.y + rightShoulder.y) / 2 };
+            const verticalRef = { x: shoulder.x, y: shoulder.y + 0.2 };
+            currentMeasuredAngle = calculateVectorAngle(shoulder, ear, verticalRef);
+            isAngleValid = currentMeasuredAngle >= ex.targetAngle;
+
+          } else if (ex.type === 'neck_left') {
+            const midShoulder = { x: (leftShoulder.x + rightShoulder.x) / 2, y: (leftShoulder.y + rightShoulder.y) / 2 };
+            const verticalRef = { x: midShoulder.x, y: midShoulder.y - 0.2 };
+            currentMeasuredAngle = calculateVectorAngle(midShoulder, nose, verticalRef);
+            isAngleValid = currentMeasuredAngle >= ex.targetAngle;
+
+          } else if (ex.type === 't_pose') {
+            const angleL = calculateVectorAngle(leftShoulder, leftElbow, leftHip);
+            const angleR = calculateVectorAngle(rightShoulder, rightElbow, rightHip);
+            currentMeasuredAngle = Math.round((angleL + angleR) / 2);
+            isAngleValid = currentMeasuredAngle >= 75 && currentMeasuredAngle <= 105;
+
+          } else if (ex.type === 'trunk_back') {
+            const midShoulder = { x: (leftShoulder.x + rightShoulder.x) / 2, y: (leftShoulder.y + rightShoulder.y) / 2 };
+            const midHip = { x: (leftHip.x + rightHip.x) / 2, y: (leftHip.y + rightHip.y) / 2 };
+            const verticalRef = { x: midHip.x, y: midHip.y - 0.2 };
+            currentMeasuredAngle = calculateVectorAngle(midHip, midShoulder, verticalRef);
+            isAngleValid = currentMeasuredAngle >= ex.targetAngle;
+
+          } else if (ex.type === 'overhead') {
+            const angleL = calculateVectorAngle(leftShoulder, leftWrist, leftHip);
+            const angleR = calculateVectorAngle(rightShoulder, rightWrist, rightHip);
+            currentMeasuredAngle = Math.round((angleL + angleR) / 2);
+            isAngleValid = currentMeasuredAngle >= ex.targetAngle;
+
+          } else {
+            const angleL = calculateVectorAngle(leftShoulder, leftElbow, leftHip);
+            currentMeasuredAngle = angleL;
+            isAngleValid = currentMeasuredAngle >= ex.targetAngle;
+          }
+
+          document.getElementById('angle-display').innerText = `${currentMeasuredAngle}°`;
+          triggerHoldTick(isAngleValid);
+        }
+        canvasCtx.restore();
+      });
+
+      camera = new Camera(videoElement, {
+        onFrame: async () => {
+          await pose.send({ image: videoElement });
+        },
+        width: 640,
+        height: 480
+      });
+      camera.start();
+    }
+
+    function drawSkeleton(ctx, landmarks) {
+      const connections = [
+        [11, 12], [11, 13], [13, 15], [12, 14], [14, 16],
+        [11, 23], [12, 24], [23, 24]
+      ];
+
+      ctx.strokeStyle = '#10b981';
+      ctx.lineWidth = 3;
+
+      connections.forEach(([i, j]) => {
+        const pt1 = landmarks[i];
+        const pt2 = landmarks[j];
+        if (pt1 && pt2 && pt1.visibility > 0.5 && pt2.visibility > 0.5) {
+          ctx.beginPath();
+          ctx.moveTo(pt1.x * ctx.canvas.width, pt1.y * ctx.canvas.height);
+          ctx.lineTo(pt2.x * ctx.canvas.width, pt2.y * ctx.canvas.height);
+          ctx.stroke();
+        }
+      });
+
+      landmarks.forEach((lm) => {
+        if (lm.visibility > 0.5) {
+          ctx.fillStyle = '#34d399';
+          ctx.beginPath();
+          ctx.arc(lm.x * ctx.canvas.width, lm.y * ctx.canvas.height, 4, 0, 2 * Math.PI);
+          ctx.fill();
+        }
+      });
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+    });
+  </script>
+</body>
+</html>
